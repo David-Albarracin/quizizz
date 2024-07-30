@@ -320,3 +320,291 @@ if (-not (Test-Path -Path $sqlFilePath)) {
 
 
 ```
+
+```bash
+
+#!/bin/bash
+
+# Definir el nombre de la aplicación
+appName="quizizz"
+
+# Definir los módulos
+modules=(
+    "response" "question" "catalogs" "response_catalogs" "surveys" "chapter" "response_option" "detail_response"
+)
+
+# Capitalizar y transformar texto con guiones bajos a camel case
+capitalize() {
+    local inputString=$1
+    local result=""
+    local capitalizeNext=true
+
+    for (( i=0; i<${#inputString}; i++ )); do
+        char="${inputString:$i:1}"
+        if [[ "$char" == "_" ]]; then
+            capitalizeNext=true
+        elif [[ "$capitalizeNext" == true ]]; then
+            result+=$(echo "$char" | tr '[:lower:]' '[:upper:]')
+            capitalizeNext=false
+        else
+            result+=$(echo "$char" | tr '[:upper:]' '[:lower:]')
+        fi
+    done
+
+    result=$(echo "${result:0:1}" | tr '[:lower:]' '[:upper:]')${result:1}
+    echo "$result"
+}
+
+# Generar contenido para los archivos según el tipo
+get_file_content() {
+    local fileType=$1
+    local moduleName=$2
+    local appName=$3
+    local capitalizedModule
+    capitalizedModule=$(capitalize "$moduleName")
+
+    case $fileType in
+        "Dto")
+            cat <<EOF
+package com.campuslands.${appName}.domain.dto;
+
+public class ${capitalizedModule}Dto {
+    // Define attributes here
+
+    // Define constructor(s) here
+
+    // Define getter and setter methods here
+}
+EOF
+            ;;
+        "Repository")
+            cat <<EOF
+package com.campuslands.${appName}.domain.repository;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import com.campuslands.${appName}.persistence.entity.${capitalizedModule};
+import org.springframework.stereotype.Repository;
+
+@Repository
+public interface ${capitalizedModule}Repository extends JpaRepository<${capitalizedModule}, Long> {
+    // Define repository methods here
+}
+EOF
+            ;;
+        "Service")
+            cat <<EOF
+package com.campuslands.${appName}.domain.service;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import com.campuslands.${appName}.domain.repository.${capitalizedModule}Repository;
+
+@Service
+public class ${capitalizedModule}Service {
+    // Define service methods here
+    @Autowired
+    ${capitalizedModule}Repository ${moduleName}Repository;
+}
+EOF
+            ;;
+        "Crud")
+            cat <<EOF
+package com.campuslands.${appName}.persistence.crud;
+
+public interface ${capitalizedModule}Crud {
+    // Define CRUD methods here
+}
+EOF
+            ;;
+        "Entity")
+            cat <<EOF
+package com.campuslands.${appName}.persistence.entity;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
+@Entity
+@Table(name="${moduleName}")
+public class ${capitalizedModule} {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    Long id;
+    // Define entity attributes here
+
+    // Define constructor(s) here
+
+    // Define getter and setter methods here
+}
+EOF
+            ;;
+        "Controller")
+            cat <<EOF
+package com.campuslands.${appName}.web.controller;
+
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.GetMapping;
+
+@RestController
+@RequestMapping("/${moduleName}")
+public class ${capitalizedModule}Controller {
+
+    @GetMapping("/")
+    public String getMethodName() {
+        return "${capitalizedModule} is Word";
+    }
+}
+EOF
+            ;;
+        *)
+            echo "Unknown file type: $fileType"
+            exit 1
+            ;;
+    esac
+}
+
+# Crear carpetas y archivos necesarios
+create_structure() {
+    local appName=$1
+    local modules=("${@:2}")
+
+    # Definir las rutas de carpetas
+    local paths=(
+        "domain/dto"
+        "domain/repository"
+        "domain/service"
+        "persistence/crud"
+        "persistence/entity"
+        "web/controller"
+    )
+
+    # Crear las carpetas si no existen
+    for path in "${paths[@]}"; do
+        mkdir -p "$path"
+    done
+
+    # Crear archivos para cada módulo
+    for module in "${modules[@]}"; do
+        local capitalizedModule
+        capitalizedModule=$(capitalize "$module")
+
+        local files=(
+            "domain/dto/${capitalizedModule}Dto.java"
+            "domain/repository/${capitalizedModule}Repository.java"
+            "domain/service/${capitalizedModule}Service.java"
+            "persistence/crud/${capitalizedModule}Crud.java"
+            "persistence/entity/${capitalizedModule}.java"
+            "web/controller/${capitalizedModule}Controller.java"
+        )
+        
+        for file in "${files[@]}"; do
+            if [[ ! -f "$file" ]]; then
+                touch "$file"
+                local fileType
+                fileType=$(basename "$file" | sed -E 's/(.*)Dto\.java/Dto/;s/(.*)Repository\.java/Repository/;s/(.*)Service\.java/Service/;s/(.*)Crud\.java/Crud/;s/(.*)Controller\.java/Controller/;s/(.*)\.java/Entity/')
+                local content
+                content=$(get_file_content "$fileType" "$module" "$appName")
+                echo "$content" > "$file"
+            fi
+        done
+    done
+}
+
+# Crear la estructura de módulos
+create_structure "$appName" "${modules[@]}"
+
+# Definir rutas y contenido para archivos de configuración
+configPath="config"
+filePath="$configPath/AppConfig.java"
+fileContent=$(cat <<EOF
+package com.campuslands.${appName}.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+@Configuration
+public class AppConfig {
+
+    @Bean
+    public WebMvcConfigurer corsConfigurer() {
+        return new WebMvcConfigurer() {
+            @Override
+            public void addCorsMappings(CorsRegistry registry) {
+                registry.addMapping("/**")
+                        .allowedOrigins("*")
+                        .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                        .allowedHeaders("*");
+            }
+        };
+    }
+}
+EOF
+)
+
+resourcesPath="../../../../resources"
+productionFilePath="$resourcesPath/application-production.properties"
+devFilePath="$resourcesPath/application-dev.properties"
+mainPropertiesFilePath="$resourcesPath/application.properties"
+sqlFilePath="$resourcesPath/import.sql"
+
+# Crear la carpeta config si no existe y escribir el archivo AppConfig.java
+mkdir -p "$configPath"
+echo "$fileContent" > "$filePath"
+
+# Contenidos de archivos de propiedades
+devContent=$(cat <<EOF
+# Server configuration
+server.port=8080
+
+# Database configuration
+spring.datasource.url=jdbc:mysql://localhost:3306/quizizz
+spring.datasource.username=campus2023
+spring.datasource.password=campus2023
+spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+spring.jpa.database-platform=org.hibernate.dialect.MySQLDialect
+spring.jpa.show-sql=true
+spring.jpa.hibernate.ddl-auto=create
+EOF
+)
+
+mainPropertiesContent=$(cat <<EOF
+spring.profiles.active=dev
+EOF
+)
+
+# Crear la carpeta resources si no existe
+mkdir -p "$resourcesPath"
+
+# Crear los archivos de propiedades si no existen
+if [[ ! -f "$productionFilePath" ]]; then
+    touch "$productionFilePath"
+fi
+
+if [[ ! -f "$devFilePath" ]]; then
+    echo "$devContent" > "$devFilePath"
+fi
+
+if [[ ! -f "$mainPropertiesFilePath" ]]; then
+    echo "$mainPropertiesContent" > "$mainPropertiesFilePath"
+else
+    if ! grep -q "spring.profiles.active=dev" "$mainPropertiesFilePath"; then
+        echo "$mainPropertiesContent" >> "$mainPropertiesFilePath"
+    fi
+fi
+
+# Crear el archivo import.sql si no existe
+if [[ ! -f "$sqlFilePath" ]]; then
+    touch "$sqlFilePath"
+fi
+
+```
+
+
+
+
