@@ -30,7 +30,7 @@ public class ResponseOption {
     @Column(name = "option_text")
     String optionText;
 
-    @Column(name = "questions_parent")
+    @Column(name = "question_parent")
     Integer questionsParent;
     // Define constructor(s) here
 

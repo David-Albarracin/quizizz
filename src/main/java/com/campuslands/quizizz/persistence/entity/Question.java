@@ -10,7 +10,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name="question")
+@Table(name="questions")
 public class Question {
 
     @Id
@@ -22,8 +22,8 @@ public class Question {
     private Chapter chapterId;
 
     @ManyToOne
-    @JoinColumn(name = "parent_questions_id")
-    private Question parentQuestionsId;
+    @JoinColumn(name = "parent_question_id")
+    private Question parentQuestionId;
 
     @ManyToOne
     @JoinColumn(name = "survey_id")
@@ -38,7 +38,7 @@ public class Question {
     @Column(name = "response_type")
     String responseType;
 
-    @Column(name = "comment_questions")
+    @Column(name = "comment_question")
     String commentQuestions;
     // Define constructor(s) here
 

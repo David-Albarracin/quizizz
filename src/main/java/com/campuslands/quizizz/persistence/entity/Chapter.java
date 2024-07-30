@@ -18,10 +18,10 @@ public class Chapter {
     Long id;
     // Define entity attributes here
     @Column(name = "chapter_number")
-    Integer chapterNumber;
+    String chapterNumber;
 
     @Column(name = "chapter_title")
-    Integer chapterTitle;
+    String chapterTitle;
 
     @ManyToOne
     @JoinColumn(name = "survey_id")

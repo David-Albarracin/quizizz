@@ -10,4 +10,6 @@ public class CatalogsService {
     // Define service methods here
     @Autowired
     CatalogsRepository catalogsRepository;
+
+
 }
